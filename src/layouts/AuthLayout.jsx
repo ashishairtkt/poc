@@ -1,5 +1,6 @@
 import { Outlet, Navigate } from "react-router-dom";
 import { useSelector } from "react-redux";
+import { AppLoader } from "@/components/base/loader/app-loader";
 
 
 const AuthLayout = () => {
@@ -9,11 +10,7 @@ const AuthLayout = () => {
 
     // Prevent UI flicker while checking auth
     if (isLoading) {
-        return (
-            <div className="min-h-screen flex items-center justify-center">
-                <p>Checking authentication...</p>
-            </div>
-        );
+        return <AppLoader label="Checking authentication…" />;
     }
 
     // If user already logged in → redirect

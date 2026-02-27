@@ -3,14 +3,16 @@ import { router } from "./routes/AppRoutes";
 import { Suspense } from "react";
 import { AuthProvider } from "./context/AuthContext";
 import { GoogleOAuthProvider } from "@react-oauth/google";
+import { AppLoader } from "@/components/base/loader/app-loader";
 
-const GOOGLE_CLIENT_ID = "494101382211-bg0pabef9cagudq5hh871m0pjsku4uj1.apps.googleusercontent.com"; // Replace with your real Client ID
+const GOOGLE_CLIENT_ID =
+  "494101382211-bg0pabef9cagudq5hh871m0pjsku4uj1.apps.googleusercontent.com"; // Replace with your real Client ID
 
 function App() {
   return (
     <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
       <AuthProvider>
-        <Suspense fallback={<div>Loading…</div>}>
+        <Suspense fallback={<AppLoader label="Loading…" />}>
           <RouterProvider router={router} />
         </Suspense>
       </AuthProvider>
@@ -19,3 +21,4 @@ function App() {
 }
 
 export default App;
+
