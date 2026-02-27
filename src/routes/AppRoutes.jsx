@@ -9,6 +9,7 @@ import ProtectedRoute from "./ProtectedRoute";
 import Signup from "../pages/Signup";
 const Home = lazy(() => import("../pages/Home"));
 const Dashboard = lazy(() => import("../pages/Dashboard"));
+const Profile = lazy(() => import("../pages/Profile"));
 
 export const router = createBrowserRouter([
     {
@@ -25,6 +26,14 @@ export const router = createBrowserRouter([
                 element: (
                     <ProtectedRoute>
                         <Dashboard />
+                    </ProtectedRoute>
+                ),
+            },
+            {
+                path: "profile",
+                element: (
+                    <ProtectedRoute>
+                        <Profile />
                     </ProtectedRoute>
                 ),
             },

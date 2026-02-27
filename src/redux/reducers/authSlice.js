@@ -1,5 +1,16 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
-import { loginApi, signupApi, refreshTokenApi } from "../../services/authService";
+import {
+  loginApi,
+  signupApi,
+  refreshTokenApi,
+  logoutApi,
+} from "../../services/authService";
+import { supabase } from "../../services/supabaseClient";
+import {
+  uploadAvatarAndGetUrl,
+  upsertProfile,
+  updateAuthMetadata,
+} from "../../services/profileService";
 import { jwtDecode } from "jwt-decode";
 
 // ─── Storage helpers ──────────────────────────────────────────────────────────
@@ -84,7 +95,11 @@ export const signupThunk = createAsyncThunk(
 );
 
 export const logoutThunk = createAsyncThunk("auth/logout", async () => {
-  clearSession();
+  try {
+    await logoutApi();
+  } finally {
+    clearSession();
+  }
 });
 
 export const refreshTokenThunk = createAsyncThunk(
@@ -107,20 +122,42 @@ export const refreshTokenThunk = createAsyncThunk(
 
 export const restoreSessionThunk = createAsyncThunk(
   "auth/restoreSession",
-  async (_, { dispatch, rejectWithValue }) => {
+  async (_, { rejectWithValue }) => {
     try {
       const session = loadSession();
       if (!session) return rejectWithValue("No session found.");
 
       const { user, token, refreshToken, expiresAt, remember } = session;
 
-      // If token is expired, try to refresh it
-      if (Date.now() >= expiresAt) {
-        // Temporarily restore refreshToken so refreshTokenThunk can read it
-        dispatch(authSlice.actions.setRefreshToken({ refreshToken, remember }));
-        await dispatch(refreshTokenThunk()).unwrap();
-        const updated = loadSession();
-        return { ...updated, remember };
+      // Seed Supabase client session (and refresh if needed) when possible.
+      if (token && refreshToken) {
+        const { data, error } = await supabase.auth.setSession({
+          access_token: token,
+          refresh_token: refreshToken,
+        });
+        if (error) throw error;
+        if (data?.session) {
+          const updated = {
+            ...session,
+            token: data.session.access_token,
+            refreshToken: data.session.refresh_token,
+            expiresAt: data.session.expires_at ? data.session.expires_at * 1000 : null,
+          };
+          saveSession(updated, remember);
+          return {
+            user: updated.user,
+            token: updated.token,
+            refreshToken: updated.refreshToken,
+            expiresAt: updated.expiresAt,
+            remember,
+          };
+        }
+      }
+
+      // No refreshToken (e.g. Google ID token) â€” fall back to stored session.
+      if (expiresAt && Date.now() >= expiresAt) {
+        clearSession();
+        return rejectWithValue("Session expired. Please log in again.");
       }
 
       return { user, token, refreshToken, expiresAt, remember };
@@ -132,6 +169,45 @@ export const restoreSessionThunk = createAsyncThunk(
 );
 
 // ─── Initial State ────────────────────────────────────────────────────────────
+export const updateProfileThunk = createAsyncThunk(
+  "auth/updateProfile",
+  async ({ fullName, avatarFile }, { getState, rejectWithValue }) => {
+    try {
+      const state = getState().auth;
+      const userId = state.user?.id;
+      const email = state.user?.email;
+      if (!userId || !email) throw new Error("No user session found.");
+
+      let avatarUrl = state.user?.avatar ?? null;
+      if (avatarFile) {
+        avatarUrl = await uploadAvatarAndGetUrl({ userId, file: avatarFile });
+      }
+
+      const updatedUser = await upsertProfile({
+        userId,
+        email,
+        fullName,
+        avatarUrl,
+      });
+
+      try {
+        await updateAuthMetadata({ fullName, avatarUrl });
+      } catch {
+        // Ignore metadata sync errors; DB remains source of truth for profile.
+      }
+
+      const session = loadSession();
+      if (session) {
+        saveSession({ ...session, user: updatedUser }, state.remember);
+      }
+
+      return updatedUser;
+    } catch (err) {
+      return rejectWithValue(err.message);
+    }
+  }
+);
+
 const initialState = {
   isAuthenticated: false,
   isLoading: false,
@@ -176,6 +252,7 @@ const authSlice = createSlice({
         state.error = null;
       })
       .addCase(loginThunk.rejected, (state, action) => {
+        state.isLoading = false;
         state.error = action.payload;
       });
 
@@ -254,6 +331,21 @@ const authSlice = createSlice({
       .addCase(restoreSessionThunk.rejected, (state) => {
         state.isRestoringSession = false;
         state.isAuthenticated = false;
+      });
+
+    // â”€â”€ Update Profile â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    builder
+      .addCase(updateProfileThunk.pending, (state) => {
+        state.isLoading = true;
+        state.error = null;
+      })
+      .addCase(updateProfileThunk.fulfilled, (state, action) => {
+        state.isLoading = false;
+        state.user = { ...state.user, ...action.payload };
+      })
+      .addCase(updateProfileThunk.rejected, (state, action) => {
+        state.isLoading = false;
+        state.error = action.payload;
       });
   },
 });

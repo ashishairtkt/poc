@@ -93,7 +93,7 @@ export const NavAccountMenu = ({
         >
             <div className="rounded-xl bg-primary ring-1 ring-secondary">
                 <div className="flex flex-col gap-0.5 py-1.5">
-                    <NavAccountCardMenuItem label="View profile" icon={User01} />
+                    <NavAccountCardMenuItem label="View profile" icon={User01} href="/profile" />
                     <NavAccountCardMenuItem label="Account settings" icon={Settings01} />
                     {/* <NavAccountCardMenuItem label="Documentation" icon={BookOpen01} /> */}
                 </div>
@@ -134,29 +134,46 @@ const NavAccountCardMenuItem = ({
     icon: Icon,
     label,
     shortcut,
+    href,
     ...buttonProps
 }: {
     icon?: FC<{ className?: string }>;
     label: string;
     shortcut?: string;
-} & HTMLAttributes<HTMLButtonElement>) => {
-    return (
-        <button {...buttonProps} className={cx("group/item w-full cursor-pointer px-1.5 focus:outline-hidden", buttonProps.className)}>
-            <div
-                className={cx(
-                    "flex w-full items-center justify-between gap-3 rounded-md p-2 group-hover/item:bg-primary_hover",
-                    // Focus styles.
-                    "outline-focus-ring group-focus-visible/item:outline-2 group-focus-visible/item:outline-offset-2",
-                )}
-            >
-                <div className="flex gap-2 text-sm font-semibold text-secondary group-hover/item:text-secondary_hover">
-                    {Icon && <Icon className="size-5 text-fg-quaternary" />} {label}
-                </div>
-
-                {shortcut && (
-                    <kbd className="flex rounded px-1 py-px font-body text-xs font-medium text-tertiary ring-1 ring-secondary ring-inset">{shortcut}</kbd>
-                )}
+    href?: string;
+} & (HTMLAttributes<HTMLButtonElement> | HTMLAttributes<HTMLAnchorElement>)) => {
+    const inner = (
+        <div
+            className={cx(
+                "flex w-full items-center justify-between gap-3 rounded-md p-2 group-hover/item:bg-primary_hover",
+                // Focus styles.
+                "outline-focus-ring group-focus-visible/item:outline-2 group-focus-visible/item:outline-offset-2",
+            )}
+        >
+            <div className="flex gap-2 text-sm font-semibold text-secondary group-hover/item:text-secondary_hover">
+                {Icon && <Icon className="size-5 text-fg-quaternary" />} {label}
             </div>
+
+            {shortcut && (
+                <kbd className="flex rounded px-1 py-px font-body text-xs font-medium text-tertiary ring-1 ring-secondary ring-inset">{shortcut}</kbd>
+            )}
+        </div>
+    );
+
+    if (href) {
+        return (
+            <a
+                href={href}
+                className={cx("group/item block w-full cursor-pointer px-1.5 focus:outline-hidden", (buttonProps as any).className)}
+            >
+                {inner}
+            </a>
+        );
+    }
+
+    return (
+        <button {...(buttonProps as HTMLAttributes<HTMLButtonElement>)} className={cx("group/item w-full cursor-pointer px-1.5 focus:outline-hidden", (buttonProps as any).className)}>
+            {inner}
         </button>
     );
 };

@@ -68,10 +68,18 @@ export default function Dashboard() {
                     {/* User Card */}
                     <div className="bg-white rounded-2xl shadow-sm p-6">
                         <div className="flex items-center gap-4">
-                            {/* Initials Avatar */}
-                            <div className="w-14 h-14 rounded-full bg-indigo-600 flex items-center justify-center text-white font-bold text-lg flex-shrink-0">
-                                {initials}
-                            </div>
+                            {/* Avatar */}
+                            {user?.avatar ? (
+                                <img
+                                    src={user.avatar}
+                                    alt="Avatar"
+                                    className="w-14 h-14 rounded-full object-cover ring-2 ring-gray-100 flex-shrink-0"
+                                />
+                            ) : (
+                                <div className="w-14 h-14 rounded-full bg-indigo-600 flex items-center justify-center text-white font-bold text-lg flex-shrink-0">
+                                    {initials}
+                                </div>
+                            )}
                             {/* Info */}
                             <div className="min-w-0">
                                 <h1 className="text-base font-semibold text-gray-900 truncate">
